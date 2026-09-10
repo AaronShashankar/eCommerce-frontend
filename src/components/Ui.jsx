@@ -4,11 +4,11 @@ import { money } from "../lib/format";
 export function Notice({ children, type = "error" }) {
   return children ? <p className={`notice ${type}`}>{children}</p> : null;
 }
-export function ProductCard({ product }) {
+export function ProductCard({ product, onAdd }) {
   const price = product.salePrice ?? product.price;
   return (
     <article className="product-card">
-      <Link to={`/shop/${product.slug}`} className="product-image">
+      <Link to={`/shop/${product.slug}`} className="product-card-image">
         <img
           src={
             product.images?.[0] ||
@@ -16,17 +16,17 @@ export function ProductCard({ product }) {
           }
           alt={product.name}
         />
-        {product.salePrice && <em>Sale</em>}
+        {product.salePrice && <span className="product-card-badge">Sale</span>}
       </Link>
-      <div className="product-meta">
-        <p>{product.category?.name || "Collection"}</p>
-        <Link to={`/shop/${product.slug}`}>
-          <h3>{product.name}</h3>
-        </Link>
-        <strong>
+      <div className="product-card-meta">
+        <h3>
+          <Link to={`/shop/${product.slug}`}>{product.name}</Link>
+        </h3>
+        <div className="product-card-price">
           {money(price)}{" "}
           {product.salePrice && <del>{money(product.price)}</del>}
-        </strong>
+        </div>
+        {onAdd && <button className="quick-add" onClick={onAdd}>Quick add <Plus size={15}/></button>}
       </div>
     </article>
   );

@@ -1,96 +1,19 @@
-import { Link } from "react-router-dom";
-import { ArrowRight, Sparkles, Truck, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, Check, ShieldCheck, Sparkles, Truck, RefreshCw } from "lucide-react";
 import api from "../lib/api";
 import { ProductCard } from "../components/Ui";
+import { useStore } from "../context/StoreContext";
+
+const categories = [["Wardrobe", "Woman's Fashion", "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=85"], ["Essentials", "Men's Fashion", "https://images.unsplash.com/photo-1488161628813-04466f872be2?auto=format&fit=crop&w=900&q=85"], ["Objects", "Bags & Accessories", "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=85"]];
 export default function Home() {
-  const [products, setProducts] = useState([]);
-  useEffect(() => {
-    api
-      .get("/products?limit=4")
-      .then((r) => setProducts(r.data.products))
-      .catch(() => {});
-  }, []);
-  return (
-    <>
-      <section className="hero">
-        <div>
-          <p className="eyebrow">The new essentials</p>
-          <h1>
-            Made for the
-            <br />
-            <i>everyday.</i>
-          </h1>
-          <p className="hero-copy">
-            Quietly confident objects and clothing, chosen to bring ease to the
-            way you move through the world.
-          </p>
-          <Link to="/shop" className="button light">
-            Discover the collection <ArrowRight size={17} />
-          </Link>
-        </div>
-        <img
-          src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1600&q=85"
-          alt="Velora collection"
-        />
-      </section>
-      <section className="benefits">
-        <div>
-          <Truck />
-          <span>
-            <b>Thoughtful delivery</b>Complimentary over $100
-          </span>
-        </div>
-        <div>
-          <RefreshCw />
-          <span>
-            <b>Easy returns</b>30 days, no questions asked
-          </span>
-        </div>
-        <div>
-          <Sparkles />
-          <span>
-            <b>Built to last</b>Materials that age beautifully
-          </span>
-        </div>
-      </section>
-      <section className="section">
-        <div className="section-title">
-          <div>
-            <p className="eyebrow">Just in</p>
-            <h2>
-              Small things, <i>well made.</i>
-            </h2>
-          </div>
-          <Link to="/shop">
-            View all <ArrowRight size={16} />
-          </Link>
-        </div>
-        <div className="product-grid">
-          {products.map((p) => (
-            <ProductCard product={p} key={p._id} />
-          ))}
-        </div>
-      </section>
-      <section className="editorial">
-        <img
-          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=85"
-          alt="Minimal fashion"
-        />
-        <div>
-          <p className="eyebrow">Our philosophy</p>
-          <h2>
-            Less, but <i>better.</i>
-          </h2>
-          <p>
-            We believe the best pieces earn their place. They feel right today,
-            and even better with time.
-          </p>
-          <Link to="/about" className="text-link">
-            Read our story <ArrowRight size={16} />
-          </Link>
-        </div>
-      </section>
-    </>
-  );
+  const [products, setProducts] = useState([]); const [notice, setNotice] = useState("");
+  const { user, refreshCart } = useStore(); const navigate = useNavigate();
+  useEffect(() => { api.get("/products?limit=8").then((r) => setProducts(r.data.products || [])).catch(() => {}); }, []);
+  const add = async (product) => { if (!user) return navigate("/login", { state: { from: "/" } }); try { await api.post("/cart/items", { productId: product._id, quantity: 1 }); await refreshCart(); setNotice(`${product.name} is in your bag`); setTimeout(() => setNotice(""), 2400); } catch { setNotice("Could not add that item. Please try again."); } };
+  return <div className="home-page">
+    {notice && <div className="toast"><Check size={16}/>{notice}</div>}
+    <section className="home-hero"><div className="hero-copy"><p className="kicker"><Sparkles size={14}/> Curated for daily life</p><h1>Wear less.<br/><em>Live more.</em></h1><p className="hero-text">A considered collection of clothing and objects that makes the everyday feel like your own.</p><div className="hero-actions"><Link to="/shop" className="button button-light">Shop the collection <ArrowRight size={17}/></Link><Link to="/about" className="text-link light">Our point of view</Link></div><div className="hero-stats"><span><b>48h</b> dispatch</span><span><b>30 days</b> easy returns</span></div></div><div className="hero-visual"><img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1400&q=90" alt="New season collection"/><div className="hero-note"><span>01 — Autumn / Winter</span><b>Everyday,<br/>elevated.</b></div></div></section>
+    <section className="home-content"><div className="intro-row"><p className="kicker">The edit</p><h2>Pieces that earn<br/>their place.</h2><p>Designed to work hard, feel good, and remain relevant long after the season changes.</p></div><div className="category-grid">{categories.map(([label, category, image]) => <Link key={label} to={`/shop?category=${encodeURIComponent(category)}`} className="category-tile"><img src={image} alt=""/><div><span>{label}</span><ArrowRight size={19}/></div></Link>)}</div><div className="section-head"><div><p className="kicker">Just in</p><h2>New direction.</h2></div><Link to="/shop" className="text-link">View all <ArrowRight size={16}/></Link></div><div className="product-grid">{products.slice(0, 4).map((p) => <ProductCard product={p} key={p._id} onAdd={() => add(p)}/>)}</div><section className="editorial-banner"><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1300&q=85" alt="Fashion editorial"/><div><p className="kicker">A slower approach</p><h2>Keep only what you love.</h2><p>Thoughtful choices, better materials, fewer compromises.</p><Link className="button button-light" to="/shop?featured=true">Explore featured <ArrowRight size={17}/></Link></div></section><div className="trust-row"><div><Truck/><b>Fast dispatch</b><span>Orders leave within 48 hours.</span></div><div><RefreshCw/><b>Easy returns</b><span>30 days to make it right.</span></div><div><ShieldCheck/><b>Secure checkout</b><span>Protected payments, always.</span></div></div></section>
+  </div>;
 }

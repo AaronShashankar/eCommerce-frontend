@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { LogOut, Moon, Sun, ExternalLink } from "lucide-react";
 import api from "../lib/api";
 import { money, date } from "../lib/format";
 import { Notice } from "../components/Ui";
-const tabs = ["Overview", "Products", "Orders", "Customers", "Settings"];
+import { useStore } from "../context/StoreContext";
+const tabs = ["Overview", "Products", "Orders", "Customers", "Reviews", "Settings"];
 export default function Admin() {
+  const { user, signOut } = useStore();
+  const navigate = useNavigate();
   const [tab, setTab] = useState("Overview"),
     [data, setData] = useState({}),
     [error, setError] = useState(""),
     [editingId, setEditingId] = useState(""),
+    [darkMode, setDarkMode] = useState(() => (localStorage.getItem("cf-admin-theme") || localStorage.getItem("cf-theme")) === "dark"),
     [product, setProduct] = useState({
       name: "",
       description: "",
@@ -31,6 +37,8 @@ export default function Admin() {
         setData({ orders: (await api.get("/admin/orders")).data });
       if (current === "Customers")
         setData({ customers: (await api.get("/admin/customers")).data });
+      if (current === "Reviews")
+        setData({ reviews: (await api.get("/admin/reviews")).data });
       if (current === "Settings")
         setData({
           gateways: (await api.get("/admin/gateways")).data,
@@ -43,6 +51,8 @@ export default function Admin() {
   useEffect(() => {
     load(tab);
   }, [tab]);
+  useEffect(() => { const theme = darkMode ? "dark" : "light"; localStorage.setItem("cf-admin-theme", theme); localStorage.setItem("cf-theme", theme); }, [darkMode]);
+  const toggleAdminTheme = () => setDarkMode((current) => !current);
   const resetProduct = () => {
     setEditingId("");
     setProduct({
@@ -103,14 +113,11 @@ export default function Admin() {
     await api.put("/admin/gateways", gateway);
     load("Settings");
   };
+  const moderateReview = async (id, approved) => { await api.patch(`/admin/reviews/${id}`, { approved }); load("Reviews"); };
+  const deleteReview = async (id) => { if (!window.confirm("Delete this review permanently?")) return; await api.delete(`/admin/reviews/${id}`); load("Reviews"); };
   return (
-    <section className="section admin">
-      <div className="page-heading compact">
-        <p className="eyebrow">Control room</p>
-        <h1>
-          Store <i>admin.</i>
-        </h1>
-      </div>
+    <section className={`admin-page ${darkMode ? "is-dark" : ""}`}>
+      <aside className="admin-sidebar"><div className="admin-brand">C<span>&</span>F <small>Console</small></div><p>Workspace</p>
       <div className="admin-tabs">
         {tabs.map((t) => (
           <button
@@ -121,7 +128,8 @@ export default function Admin() {
             {t}
           </button>
         ))}
-      </div>
+      </div></aside>
+      <div className="admin-workspace"><header className="admin-topbar"><div><b>Welcome back, {user?.username}</b><span>Manage your C&F store from one place.</span></div><div className="admin-top-actions"><Link to="/" className="preview-site"><ExternalLink size={15}/> Preview website</Link><button className="admin-action" onClick={toggleAdminTheme} aria-label="Toggle dark mode">{darkMode ? <Sun size={17}/> : <Moon size={17}/>}</button><button className="admin-profile" onClick={() => { signOut(); navigate("/login"); }} title="Sign out"><span>{user?.username?.slice(0,1).toUpperCase() || "A"}</span><LogOut size={16}/></button></div></header><div className="admin-content"><div className="page-heading compact"><p className="eyebrow">Store operations</p><h1>{tab} <i>workspace.</i></h1></div>
       <Notice>{error}</Notice>
       {tab === "Overview" && <Overview report={data.report} />}{" "}
       {tab === "Products" && (
@@ -141,6 +149,7 @@ export default function Admin() {
         <Orders orders={data.orders} setStatus={setStatus} />
       )}{" "}
       {tab === "Customers" && <Customers customers={data.customers} />}{" "}
+      {tab === "Reviews" && <Reviews reviews={data.reviews} moderate={moderateReview} remove={deleteReview} />}
       {tab === "Settings" && (
         <Settings
           data={data}
@@ -148,7 +157,7 @@ export default function Admin() {
           reload={() => load("Settings")}
         />
       )}
-    </section>
+    </div></div></section>
   );
 }
 function Overview({ report }) {
@@ -376,6 +385,9 @@ function Customers({ customers }) {
       </Table>
     </>
   );
+}
+function Reviews({ reviews, moderate, remove }) {
+  return <><h2>Customer reviews</h2><Table headers={["Customer", "Product", "Rating", "Review", "Visibility", ""]}>{reviews?.map((review) => <tr key={review._id}><td><b>{review.user?.username}</b><small>{review.user?.email}</small></td><td>{review.product?.name}</td><td>{"★".repeat(review.rating)}<small>{review.rating} / 5</small></td><td className="review-cell">{review.comment}</td><td><button className={`review-status ${review.approved ? "approved" : "hidden"}`} onClick={() => moderate(review._id, !review.approved)}>{review.approved ? "Published" : "Hidden"}</button></td><td><button className="text-button danger" onClick={() => remove(review._id)}>Delete</button></td></tr>)}</Table></>;
 }
 function Settings({ data, saveGateway, reload }) {
   const [code, setCode] = useState(""),
